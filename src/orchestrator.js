@@ -662,6 +662,10 @@ class Orchestrator {
         throw new Error('Either issue or text input is required');
       }
 
+      if (options.autoPr && options.autoSubmit) {
+        throw new Error('autoPr and autoSubmit cannot be enabled together');
+      }
+
       // Inject git-pusher agent if --pr is set (replaces completion-detector)
       if (options.autoPr) {
         // Remove completion-detector by ID (git-pusher handles completion + PR)
@@ -683,6 +687,29 @@ class Orchestrator {
 
         config.agents.push(gitPusherConfig);
         this._log(`[Orchestrator] Injected git-pusher agent (creates PR and auto-merges)`);
+      }
+
+      // Inject git-submitter agent if --submit is set (Graphite stack workflow)
+      if (options.autoSubmit) {
+        // Remove completion-detector by ID (git-submitter handles completion + stack submission)
+        config.agents = config.agents.filter((a) => a.id !== 'completion-detector');
+
+        // Load and configure git-submitter agent (use fs.readFileSync to avoid require cache)
+        const gitSubmitterPath = path.join(__dirname, 'agents', 'git-submitter-agent.json');
+        const gitSubmitterConfig = JSON.parse(fs.readFileSync(gitSubmitterPath, 'utf8'));
+
+        // Inject issue context placeholders
+        gitSubmitterConfig.prompt = gitSubmitterConfig.prompt.replace(
+          /\{\{issue_number\}\}/g,
+          inputData.number || 'unknown'
+        );
+        gitSubmitterConfig.prompt = gitSubmitterConfig.prompt.replace(
+          /\{\{issue_title\}\}/g,
+          inputData.title || 'Implementation'
+        );
+
+        config.agents.push(gitSubmitterConfig);
+        this._log(`[Orchestrator] Injected git-submitter agent (creates Graphite stack)`);
       }
 
       // Inject workers instruction if --workers explicitly provided and > 1

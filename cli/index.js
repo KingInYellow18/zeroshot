@@ -455,6 +455,7 @@ program
   )
   .option('--pr', 'Create PR for human review (uses worktree isolation by default, use --docker for Docker)')
   .option('--ship', 'Full automation: worktree isolation + PR + auto-merge (use --docker for Docker)')
+  .option('--submit', 'Create Graphite stack for human review (worktree isolation only)')
   .option('--workers <n>', 'Max sub-agents for worker to spawn in parallel', parseInt)
   .option('-d, --detach', 'Run in background (default: attach to first agent)')
   .option('--mount <spec...>', 'Add Docker mount (host:container[:ro]). Repeatable.')
@@ -476,10 +477,8 @@ Input formats:
       // --ship = full automation (worktree isolation + PR + auto-merge)
       if (options.ship) {
         options.pr = true;
-        // Use worktree by default, Docker only if explicitly requested
-        if (!options.docker) {
-          options.worktree = true;
-        }
+        // Use worktree by default
+        options.worktree = true;
       }
       // --pr = PR for human review (worktree by default, Docker if requested)
       if (options.pr && !options.docker && !options.worktree) {
@@ -489,6 +488,25 @@ Input formats:
       // Mutual exclusivity: --docker explicitly disables worktree
       if (options.docker) {
         options.worktree = false;
+      }
+
+      // --submit = Graphite stack workflow (worktree isolation, no auto-merge)
+      if (options.submit) {
+        // Mutual exclusivity check with --pr and --ship
+        if (options.pr || options.ship) {
+          console.error(chalk.red('Error: --submit cannot be combined with --pr or --ship'));
+          console.error(chalk.dim('Use --submit for Graphite stacks, or --pr/--ship for GitHub PRs'));
+          process.exit(1);
+        }
+        if (options.docker) {
+          console.error(chalk.red('Error: --submit does not support --docker'));
+          console.error(chalk.dim('Use --worktree with --submit, or drop --submit for Docker'));
+          process.exit(1);
+        }
+        // Use worktree by default, Docker only if explicitly requested
+        if (!options.docker) {
+          options.worktree = true;
+        }
       }
 
       // Auto-detect input type
@@ -518,6 +536,7 @@ Input formats:
         requireGh: !!input.issue, // gh CLI required when fetching GitHub issues
         requireDocker: options.docker, // Docker required for --docker mode
         requireGit: options.worktree, // Git required for worktree isolation
+        requireGraphite: options.submit, // Graphite CLI required for --submit mode
         quiet: process.env.ZEROSHOT_DAEMON === '1', // Suppress success in daemon mode
       };
       requirePreflight(preflightOptions);
@@ -569,6 +588,7 @@ Input formats:
             ZEROSHOT_DOCKER_IMAGE: options.dockerImage || '',
             ZEROSHOT_PR: options.pr ? '1' : '',
             ZEROSHOT_WORKTREE: options.worktree ? '1' : '',
+            ZEROSHOT_SUBMIT: options.submit ? '1' : '',
             ZEROSHOT_WORKERS: options.workers?.toString() || '',
             ZEROSHOT_CWD: targetCwd, // Explicit CWD for orchestrator
           },
@@ -650,6 +670,7 @@ Input formats:
         isolationImage: options.dockerImage || process.env.ZEROSHOT_DOCKER_IMAGE || undefined,
         worktree: options.worktree || process.env.ZEROSHOT_WORKTREE === '1',
         autoPr: options.pr || process.env.ZEROSHOT_PR === '1',
+        autoSubmit: options.submit || process.env.ZEROSHOT_SUBMIT === '1',
         autoMerge: process.env.ZEROSHOT_MERGE === '1',
         autoPush: process.env.ZEROSHOT_PUSH === '1',
         // Docker mount options
