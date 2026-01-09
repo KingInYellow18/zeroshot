@@ -38,8 +38,8 @@
         "onComplete": {
           "action": "publish_message",
           "config": {
-            "topic": "CLUSTER_COMPLETE",
-            "content": { "text": "Task completed." }
+            "topic": "IMPLEMENTATION_READY",
+            "content": { "text": "Implementation complete." }
           }
         }
       }
@@ -49,7 +49,7 @@
       "role": "orchestrator",
       "model": "haiku",
       "timeout": 0,
-      "triggers": [{ "topic": "CLUSTER_COMPLETE", "action": "stop_cluster" }]
+      "triggers": [{ "topic": "IMPLEMENTATION_READY", "action": "stop_cluster" }]
     }
   ]
 }
