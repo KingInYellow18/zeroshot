@@ -13,7 +13,7 @@ Message-passing primitives for multi-agent workflows. **Install:** `npm i -g @co
 | **Never ask questions** | Agents run non-interactively | `AskUserQuestion`, waiting for confirmation | Make autonomous decisions |
 | **Never edit CLAUDE.md** | Context file for Claude Code | Editing this file | Read-only unless explicitly asked to update docs |
 
-**Worker git operations:** Allowed with isolation (`--worktree`, `--docker`, `--pr`, `--ship`). Forbidden without isolation (auto-injected restriction).
+**Worker git operations:** Allowed with isolation (`--worktree`, `--docker`, `--pr`, `--ship`, `--submit`). Forbidden without isolation (auto-injected restriction).
 
 **Read-only safe:** `zeroshot list`, `zeroshot status`, `zeroshot logs`
 
@@ -33,15 +33,19 @@ Message-passing primitives for multi-agent workflows. **Install:** `npm i -g @co
 | Docker mounts/env | `lib/docker-config.js` |
 | Container lifecycle | `src/isolation-manager.js` |
 | Settings | `lib/settings.js` |
+| Git-pusher agent | `src/agents/git-pusher-agent.json` |
+| Git-submitter agent | `src/agents/git-submitter-agent.json` |
 
 ## CLI Quick Reference
 
 ```bash
 # Flag cascade: --ship → --pr → --worktree
+# --submit uses Graphite (mutually exclusive with --pr/--ship; not supported with --docker)
 zeroshot run 123                  # Local, no isolation
 zeroshot run 123 --worktree       # Git worktree isolation
-zeroshot run 123 --pr             # Worktree + create PR
-zeroshot run 123 --ship           # Worktree + PR + auto-merge
+zeroshot run 123 --pr             # Worktree + create PR (gh CLI)
+zeroshot run 123 --ship           # Worktree + PR + auto-merge (gh CLI)
+zeroshot run 123 --submit         # Worktree + Graphite stack (gt CLI)
 zeroshot run 123 --docker         # Docker container isolation
 zeroshot run 123 -d               # Background (daemon) mode
 
@@ -148,6 +152,22 @@ Classifies tasks on **Complexity × TaskType**, routes to parameterized template
 **Worktree:** Lightweight git branch isolation (<1s setup).
 
 **Docker:** Fresh git clone in container, credentials mounted, auto-cleanup.
+
+## PR Submission Modes
+
+| Mode | Flag | Tool | Auto-merge | Use When |
+|------|------|------|------------|----------|
+| GitHub PR | `--pr` | `gh` CLI | Yes | Quick PR via GitHub |
+| Ship | `--ship` | `gh` CLI | Yes | Full automation + merge |
+| Graphite | `--submit` | `gt` CLI | No | Stack-based PRs for review (worktree only) |
+
+**--submit (Graphite stacks):**
+- Creates multi-PR stacks using `gt create` + `gt submit`
+- Organizes changes into logical, reviewable units
+- PRs left for human review (no auto-merge)
+- Mutually exclusive with `--pr` and `--ship`
+- Not supported with `--docker` (worktree only)
+- Requires Graphite CLI: `npm i -g @withgraphite/graphite-cli`
 
 ## Docker Mount Configuration
 

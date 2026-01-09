@@ -273,11 +273,41 @@ function checkDocker() {
 }
 
 /**
+ * Check Graphite CLI availability
+ * @returns {{ installed: boolean, error: string | null }}
+ */
+function checkGraphite() {
+  // Check if gt is installed
+  if (!commandExists('gt')) {
+    return {
+      installed: false,
+      error: 'Graphite CLI (gt) not installed',
+    };
+  }
+
+  // Verify gt is functional
+  try {
+    execSync('gt --version', { encoding: 'utf8', stdio: 'pipe' });
+    return {
+      installed: true,
+      error: null,
+    };
+  } catch (err) {
+    const stderr = err.stderr || err.message || '';
+    return {
+      installed: false,
+      error: `Graphite CLI error: ${stderr.trim() || err.message}`,
+    };
+  }
+}
+
+/**
  * Run all preflight checks
  * @param {Object} options - Preflight options
  * @param {boolean} options.requireGh - Whether gh CLI is required (true if using issue number)
  * @param {boolean} options.requireDocker - Whether Docker is required (true if using --docker)
  * @param {boolean} options.requireGit - Whether git repo is required (true if using --worktree)
+ * @param {boolean} options.requireGraphite - Whether Graphite CLI is required (true if using --submit)
  * @param {boolean} options.quiet - Suppress success messages
  * @param {string} options.claudeCommand - Custom Claude command (from settings)
  * @returns {ValidationResult}
@@ -428,6 +458,24 @@ function runPreflight(options = {}) {
     }
   }
 
+  // 7. Check Graphite CLI (if required for --submit)
+  if (options.requireGraphite) {
+    const gt = checkGraphite();
+    if (!gt.installed) {
+      errors.push(
+        formatError(
+          'Graphite CLI (gt) not installed',
+          gt.error || 'Required for --submit mode',
+          [
+            'Install: npm install -g @withgraphite/graphite-cli',
+            'Or: brew install withgraphite/tap/graphite',
+            'Then verify: gt --version',
+          ]
+        )
+      );
+    }
+  }
+
   return {
     valid: errors.length === 0,
     errors,
@@ -478,5 +526,6 @@ module.exports = {
   checkClaudeAuth,
   checkGhAuth,
   checkDocker,
+  checkGraphite,
   formatError,
 };
