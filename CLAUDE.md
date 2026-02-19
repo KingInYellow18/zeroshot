@@ -6,18 +6,45 @@ Message-passing primitives for multi-agent workflows. **Install:** `npm i -g @co
 
 ## 🔴 CRITICAL RULES
 
-| Rule                               | Why                          | Forbidden                                   | Required                                         |
-| ---------------------------------- | ---------------------------- | ------------------------------------------- | ------------------------------------------------ |
-| **Never spawn without permission** | Consumes API credits         | "I'll run zeroshot on 123"                  | User says "run zeroshot"                         |
-| **Never use git in validators**    | Git state unreliable         | `git diff`, `git status` in prompts         | Validate files directly                          |
-| **Never ask questions**            | Agents run non-interactively | `AskUserQuestion`, waiting for confirmation | Make autonomous decisions                        |
-| **Never edit CLAUDE.md**           | Context file for Claude Code | Editing this file                           | Read-only unless explicitly asked to update docs |
+| Rule                               | Why                          | Forbidden                                    | Required                                         |
+| ---------------------------------- | ---------------------------- | -------------------------------------------- | ------------------------------------------------ |
+| **GENERAL PURPOSE ONLY**           | Zeroshot runs on ANY repo    | Hardcoded paths, scripts, languages, domains | Discover from target repo's CLAUDE.md/README     |
+| **Never spawn without permission** | Consumes API credits         | "I'll run zeroshot on 123"                   | User says "run zeroshot"                         |
+| **Never use git in validators**    | Git state unreliable         | `git diff`, `git status` in prompts          | Validate files directly                          |
+| **Never ask questions**            | Agents run non-interactively | `AskUserQuestion`, waiting for confirmation  | Make autonomous decisions                        |
+| **Never edit CLAUDE.md**           | Context file for Claude Code | Editing this file                            | Read-only unless explicitly asked to update docs |
+
+### 🔴 GENERAL PURPOSE REQUIREMENT (CRITICAL)
+
+**Zeroshot is a GENERAL-PURPOSE multi-agent orchestrator. It MUST work on ANY repository, ANY programming language, ANY domain.**
+
+**FORBIDDEN in templates/prompts:**
+
+- Hardcoded script names (`check-all.sh`, `validate.sh`)
+- Hardcoded test commands (`npm test`, `pytest`, `cargo test`)
+- Hardcoded file paths (`server/`, `src/`, `tests/`)
+- Hardcoded context file names (`CLAUDE.md` - other providers use different files)
+- Language-specific assumptions (TypeScript, Python, Rust)
+- Domain-specific assumptions (web, CLI, mobile)
+- Provider-specific assumptions (Claude, Codex, Gemini)
+- Covibes-specific patterns
+
+**REQUIRED:**
+
+- Discover validation commands from target repo's context files (README, Makefile, package.json, pyproject.toml, Cargo.toml, etc.)
+- Discover test runners from target repo's build system
+- Use generic examples in prompts (e.g., "the repo's validation script" NOT "./scripts/check-all.sh")
+- Use generic terms for context files ("repo context files" NOT "CLAUDE.md")
+- Work correctly on: Python projects, Rust crates, Go modules, Ruby gems, Java/Kotlin, C/C++, etc.
+- Work correctly with: Claude, Codex, Gemini, OpenAI, and any future providers
 
 **Worker git operations:** Allowed with isolation (`--worktree`, `--docker`, `--pr`, `--ship`). Forbidden without isolation (auto-injected restriction).
 
 **Read-only safe:** `zeroshot list`, `zeroshot status`, `zeroshot logs`
 
 **Destructive (needs permission):** `zeroshot kill`, `zeroshot clear`, `zeroshot purge`
+
+**Detached runs:** Always forward `zeroshot run` options via `ZEROSHOT_RUN_OPTIONS` (see `buildDaemonEnv` + `buildStartOptions`) so PR/worktree config survives daemon mode.
 
 ## 🔴 BEHAVIORAL STANDARDS
 
@@ -45,7 +72,7 @@ IS THIS HOW A SENIOR STAFF ARCHITECT WOULD DO IT? ACT LIKE ONE.
 | Ledger (SQLite)          | `src/ledger.js`                     |
 | Trigger evaluation       | `src/logic-engine.js`               |
 | Agent wrapper            | `src/agent-wrapper.js`              |
-| TUI dashboard            | `src/tui/`                          |
+| Rust TUI (Ratatui)       | `tui-rs/crates/zeroshot-tui/`       |
 | Docker mounts/env        | `lib/docker-config.js`              |
 | Container lifecycle      | `src/isolation-manager.js`          |
 | Issue providers          | `src/issue-providers/`              |
@@ -60,6 +87,7 @@ IS THIS HOW A SENIOR STAFF ARCHITECT WOULD DO IT? ACT LIKE ONE.
 zeroshot run 123                  # Local, no isolation
 zeroshot run 123 --worktree       # Git worktree isolation
 zeroshot run 123 --pr             # Worktree + create PR
+zeroshot run 123 --pr --pr-base dev # PR base: dev, worktree base: origin/dev (incl. -d)
 zeroshot run 123 --ship           # Worktree + PR + auto-merge
 zeroshot run 123 --docker         # Docker container isolation
 zeroshot run 123 -d               # Background (daemon) mode
@@ -73,7 +101,9 @@ zeroshot stop <id>                # Graceful stop
 zeroshot kill <id>                # Force kill
 
 # Utilities
-zeroshot watch                    # TUI dashboard
+zeroshot                          # Rust TUI (TTY only)
+zeroshot tui                      # Rust TUI explicit entry
+zeroshot watch                    # Rust TUI Monitor view
 zeroshot export <id>              # Export conversation
 zeroshot agents list              # Available agents
 zeroshot settings                 # View/modify settings

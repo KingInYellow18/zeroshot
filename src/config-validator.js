@@ -15,6 +15,7 @@ const { loadSettings } = require('../lib/settings');
 const { VALID_PROVIDERS, normalizeProviderName } = require('../lib/provider-names');
 const { getProvider } = require('./providers');
 const { CAPABILITIES } = require('./providers/capabilities');
+const { GUIDANCE_TOPICS } = require('./guidance-topics');
 
 /**
  * Check if config is a conductor-bootstrap style config
@@ -390,6 +391,7 @@ function reportUnproducedTopics(topicConsumers, topicProducers, errors, config) 
     'CLUSTER_RESUMED',
     'QUICK_VALIDATION_PASSED',
     'IMPLEMENTATION_READY',
+    ...GUIDANCE_TOPICS,
   ];
   const isSubTemplate = config.params && Object.keys(config.params).length > 0;
 
@@ -994,7 +996,7 @@ function validateHookAction(hook, prefix, errors) {
   if (!hook.action) {
     errors.push(
       `[Gap 1] ${prefix}: Missing 'action' field. ` +
-        `Fix: Add "action": "publish_message" or "action": "execute_system_command"`
+        `Fix: Add "action": "publish_message", "action": "execute_system_command", or "action": "verify_github_pr"`
     );
   }
 }
@@ -1216,7 +1218,7 @@ function validateRuleCoverage(config) {
         agent,
         4,
         'Model rules',
-        'Add catch-all rule { "iterations": "all", "model": "sonnet" } or extend existing ranges.',
+        'Add catch-all rule { "iterations": "all", "modelLevel": "level2" } or extend existing ranges.',
         uncoveredIterations
       );
     }
